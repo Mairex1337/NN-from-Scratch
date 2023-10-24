@@ -1,29 +1,49 @@
-
 import numpy as np
+import torch
 import pandas as pd
 from matplotlib import pyplot as plt
 
+# ____________________________________________________________________________________________________________________
+# Input parsing
+
 data_test = pd.read_csv('/Users/max/PycharmProjects/NN From Scratch/venv/mnist_test.csv')
 data_train = pd.read_csv('/Users/max/PycharmProjects/NN From Scratch/venv/mnist_train.csv')
+# Turn data into Tensors
+# Transpose the matrices
+# Separate out labels
+test_tensor = torch.tensor(data_test.values.T[1:])
+test_label = torch.tensor(data_test.values.T[0:1])
+train_tensor = torch.tensor(data_train.values.T[1:])
+train_label = torch.tensor(data_train.values.T[0:1])
 
-m1, n1 = data_test.shape
-m2, n2 = data_train.shape
-data_test = data_test.T
-data_train = data_train.T
+# Normalize values to be between 0 and 1
+test_tensor = test_tensor / 255
+train_tensor = train_tensor / 255
 
+# Debug
+#print(test_tensor.shape)
+#print(train_tensor.shape)
+#print(test_label.shape)
+#print(train_label.shape)
 
-test_label = data_test[0]
-test_values = data_test[1:n1]
-test_values = test_values / 255
-_, m_test = test_values.shape
+# ____________________________________________________________________________________________________________________
 
-train_label = data_train[0]
-train_values = data_train[1:n2]
-train_values = train_values / 255
-_, m_train = train_values.shape
+# Initializing the network
 
-print(train_label)
+# weights of input
+w1 = 2 * torch.rand(100, 784) - 1
+# biases of the hidden layer
+b1 = torch.zeros(100)
+# weights of hidden layer
+w2 = 2 * torch.rand(100, 10) - 1
+# biases of output
+b2 = torch.zeros(10)
+print(b2)
 
-print("train:", m_train, "test", m_test)
+# ____________________________________________________________________________________________________________________
+
+# forward pass
+
+def forward_pass(input_data, w1, b1, w2, b2):
 
 
