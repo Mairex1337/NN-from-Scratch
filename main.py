@@ -8,7 +8,6 @@ from matplotlib import pyplot as plt
 data_test = pd.read_csv('/Users/max/PycharmProjects/NN From Scratch/venv/mnist_test.csv')
 data_train = pd.read_csv('/Users/max/PycharmProjects/NN From Scratch/venv/mnist_train.csv')
 # Turn data into Tensors
-# Transpose the matrices
 # Separate and squeeze labels
 test_tensor = torch.tensor(data_test.values[:, 1:])
 test_label = torch.tensor(data_test.values.T[0:1])
@@ -17,18 +16,11 @@ train_tensor = torch.tensor(data_train.values[:, 1:])
 train_label = torch.tensor(data_train.values.T[0:1])
 train_label = train_label.squeeze(0)
 
-# Normalize values to be between 0 and 1
+# Normalize pixel values to be between 0 and 1
 test_tensor = test_tensor / 255
 train_tensor = train_tensor / 255
 
-# Debug
-# print(test_tensor.shape)
-# print(train_tensor.shape)
-# print(test_label.shape)
-# print(train_label.shape)
-
 # ____________________________________________________________________________________________________________________
-
 # Initializing the network
 
 
@@ -46,7 +38,6 @@ def initialize_parameters():
 
 
 # ____________________________________________________________________________________________________________________
-
 # forward pass
 def forward_pass(input_data, w1, b1, w2, b2):
     with torch.no_grad():  # tell pytorch not to keep track of gradients
@@ -57,7 +48,7 @@ def forward_pass(input_data, w1, b1, w2, b2):
         z2_shifted = z2 - z2_max
         z2_exp = torch.exp(z2_shifted)
         z2_sum = torch.sum(z2_exp, dim=1, keepdim=True)
-        za2 = z2_exp / z2_sum  # returning only 4 decimal places
+        za2 = z2_exp / z2_sum
         return za2, za1
 
 
@@ -84,7 +75,7 @@ def backward_pass(inputs, targets, za1, w2, predictions):
     onehot = torch.zeros_like(predictions)
     onehot[range(onehot.shape[0]), targets] = 1
 
-    # Calculate which predictions are correct
+    # Calculate which predictions are correct (should prob  do this in forward instead, can then also keep track of test acc.
     _, predicted_classes = torch.max(predictions, dim=1)
     correct_predictions = 0
     for i, c in zip(predicted_classes, targets):
@@ -93,7 +84,7 @@ def backward_pass(inputs, targets, za1, w2, predictions):
 
     # Calculate average accuracy
     accuracy = correct_predictions / predictions.shape[0]
-    print(f"Average test accuracy: {accuracy * 100:.2f}%")
+    print(f"Average train accuracy: {accuracy * 100:.2f}%")
 
     dz2 = predictions - onehot
     dw2 = za1.T @ dz2
@@ -120,7 +111,7 @@ def parameter_updates(w1, w2, b1, b2, dw1, dw2, db1, db2):
 
 
 # ____________________________________________________________________________________________________________________
-# save params
+# save params (not actually used yet)
 def save_model_parameters(w1, b1, w2, b2, filename="model_parameters.pth"):
     torch.save({
         'w1': w1,
@@ -154,8 +145,5 @@ for iterations in range(1000):
     w1, w2, b1, b2 = w1 - dlw1, w2 - dlw2, b1 - dlb1, b2 - dlb2
 
     # print statements
-    print("Iteration:", iterations + 1, "Current TRAINING negative log likelihood:", round(loss_train, 4), "\n", "Current TEST negative log likelihood:", round(loss_test, 4))
-
-
-
-
+    print("Iteration:", iterations + 1, "Current TRAINING negative log likelihood:", round(loss_train, 4))
+    print("Current TEST negative log likelihood:", round(loss_test, 4))
