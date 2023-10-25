@@ -1,6 +1,6 @@
 import torch
 import pandas as pd
-from matplotlib import pyplot as plt
+import matplotlib.pyplot as plt
 
 # ____________________________________________________________________________________________________________________
 # Input parsing
@@ -39,17 +39,29 @@ def initialize_parameters():
 
 # ____________________________________________________________________________________________________________________
 # forward pass
-def forward_pass(input_data, w1, b1, w2, b2):
+def forward_pass(input_data, w1, b1, w2, b2, targets):
     with torch.no_grad():  # tell pytorch not to keep track of gradients
         z1 = (input_data @ w1) + b1
         za1 = torch.tanh(z1)
         z2 = (za1 @ w2) + b2
-        z2_max = torch.max(z2, dim=1, keepdim=True)[0]
-        z2_shifted = z2 - z2_max
-        z2_exp = torch.exp(z2_shifted)
+        # softmax activation
+        z2_exp = torch.exp(z2)
         z2_sum = torch.sum(z2_exp, dim=1, keepdim=True)
         za2 = z2_exp / z2_sum
-        return za2, za1
+
+        # Calculate prediction accuracy
+        _, predicted_classes = torch.max(za2, dim=1)
+        correct_predictions = 0
+        for i, c in zip(predicted_classes, targets):
+            if i == c:
+                correct_predictions += 1
+        accuracy = (correct_predictions / za2.shape[0]) * 100
+        if input_data.shape == torch.Size([60000, 784]):
+            print(f"Average training accuracy: {accuracy:.2f}%")
+        else:
+            print(f"Average test accuracy: {accuracy:.2f}%")
+
+        return za2, za1, accuracy
 
 
 # ____________________________________________________________________________________________________________________
@@ -71,20 +83,9 @@ def negative_log_likelihood(predictions, targets):
 
 
 def backward_pass(inputs, targets, za1, w2, predictions):
-    # turn predictions into onehot vectors, vectors
+    # turn predictions into onehot vectors
     onehot = torch.zeros_like(predictions)
     onehot[range(onehot.shape[0]), targets] = 1
-
-    # Calculate which predictions are correct (should prob  do this in forward instead, can then also keep track of test acc.
-    _, predicted_classes = torch.max(predictions, dim=1)
-    correct_predictions = 0
-    for i, c in zip(predicted_classes, targets):
-        if i == c:
-            correct_predictions += 1
-
-    # Calculate average accuracy
-    accuracy = correct_predictions / predictions.shape[0]
-    print(f"Average train accuracy: {accuracy * 100:.2f}%")
 
     dz2 = predictions - onehot
     dw2 = za1.T @ dz2
@@ -101,8 +102,8 @@ def backward_pass(inputs, targets, za1, w2, predictions):
 # parameter updates
 
 
-def parameter_updates(w1, w2, b1, b2, dw1, dw2, db1, db2):
-    learning_rate = 0.00001
+def parameter_updates(dw1, dw2, db1, db2):
+    learning_rate = 0.001
     dlw1 = learning_rate * dw1
     dlw2 = learning_rate * dw2
     dlb1 = learning_rate * db1
@@ -126,12 +127,46 @@ def save_model_parameters(w1, b1, w2, b2, filename="model_parameters.pth"):
 
 w1, b1, w2, b2 = initialize_parameters()
 
+# ____________________________________________________________________________________________________________________
+# Plotting
+
+plt.style.use('dark_background')
+
+plt.ion()
+fig, ax = plt.subplots()
+ax.set_facecolor('#2C2F33')  # Setting the plot's background color
+
+# Setting up the axis and the grid
+ax.set_xlabel('Iterations', color='white')
+ax.set_ylabel('Accuracy (%)', color='white')
+ax.set_xlim(0, 10)
+ax.set_ylim(0, 100)
+ax.xaxis.set_ticks(range(0, 11, 1))  # X-axis in steps of 10
+ax.yaxis.set_ticks(range(0, 101, 10))  # Y-axis in steps of 10
+ax.grid(True, which='both', linestyle='--', linewidth=0.5, alpha=0.6)
+
+# Making sure the labels and ticks are white for visibility
+ax.tick_params(axis='x', colors='white')
+ax.tick_params(axis='y', colors='white')
+
+train_line, = ax.plot([], [], color='#E91E63', label='Train Accuracy')
+test_line, = ax.plot([], [], color='#03A9F4', label='Test Accuracy')
+ax.legend()
+
+train_accuracies = []
+test_accuracies = []
+plt.pause(5)
+
 # training loop
-for iterations in range(1000):
+for iterations in range(10):
 
     # forward pass
-    predictions, za1 = forward_pass(train_tensor, w1, b1, w2, b2)
-    predictions_test, pza1 = forward_pass(test_tensor, w1, b1, w2, b2)
+    predictions, za1, train_accuracy = forward_pass(train_tensor, w1, b1, w2, b2, train_label)
+    predictions_test, pza1, test_accuracy = forward_pass(test_tensor, w1, b1, w2, b2, test_label)
+
+    # append accuracies to plot
+    train_accuracies.append(train_accuracy)
+    test_accuracies.append(test_accuracy)
 
     # compute loss
     loss_train = negative_log_likelihood(predictions, train_label)
@@ -141,9 +176,28 @@ for iterations in range(1000):
     dw1, db1, dw2, db2 = backward_pass(train_tensor, train_label, za1, w2, predictions)
 
     # update params
-    dlw1, dlw2, dlb1, dlb2 = parameter_updates(w1, w2, b1, b2, dw1, dw2, db1, db2)
+    dlw1, dlw2, dlb1, dlb2 = parameter_updates(dw1, dw2, db1, db2)
     w1, w2, b1, b2 = w1 - dlw1, w2 - dlw2, b1 - dlb1, b2 - dlb2
 
     # print statements
     print("Iteration:", iterations + 1, "Current TRAINING negative log likelihood:", round(loss_train, 4))
     print("Current TEST negative log likelihood:", round(loss_test, 4))
+
+    # Plotting
+    train_line.set_xdata(range(iterations + 1))
+    train_line.set_ydata(train_accuracies)
+    test_line.set_xdata(range(iterations + 1))
+    test_line.set_ydata(test_accuracies)
+
+    if iterations > 0:
+        train_text.remove()
+        test_text.remove()
+
+    train_text = ax.text(10, 86, f'Train Acc: {train_accuracy:.2f}%', color='#E91E63', fontsize=13, fontweight='bold', ha='right')
+    test_text = ax.text(10, 82, f'Test Acc: {test_accuracy:.2f}%', color='#03A9F4', fontsize=13, fontweight='bold', ha='right')
+
+    fig.canvas.flush_events()
+
+
+plt.ioff()
+plt.show()
