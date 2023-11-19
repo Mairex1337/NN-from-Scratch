@@ -4,17 +4,17 @@ import matplotlib.pyplot as plt
 
 # ____________________________________________________________________________________________________________________
 # Input parsing
-
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 data_test = pd.read_csv('/Users/max/PycharmProjects/NN From Scratch/venv/mnist_test.csv')
 data_train = pd.read_csv('/Users/max/PycharmProjects/NN From Scratch/venv/mnist_train.csv')
 # Turn data into Tensors
 # Separate and squeeze labels
-test_tensor = torch.tensor(data_test.values[:, 1:])
-test_label = torch.tensor(data_test.values.T[0:1])
-test_label = test_label.squeeze(0)
-train_tensor = torch.tensor(data_train.values[:, 1:])
-train_label = torch.tensor(data_train.values.T[0:1])
-train_label = train_label.squeeze(0)
+test_tensor = torch.tensor(data_test.values[:, 1:]).to(device)
+test_label = torch.tensor(data_test.values.T[0:1]).to(device)
+test_label = test_label.squeeze(0).to(device)
+train_tensor = torch.tensor(data_train.values[:, 1:]).to(device)
+train_label = torch.tensor(data_train.values.T[0:1]).to(device)
+train_label = train_label.squeeze(0).to(device)
 
 # Normalize pixel values to be between 0 and 1
 test_tensor = test_tensor / 255
@@ -26,13 +26,13 @@ train_tensor = train_tensor / 255
 
 def initialize_parameters():
     # weights of input
-    w1 = (2 * torch.rand(784, 100) - 1) * 0.1
+    w1 = (2 * torch.rand(784, 100) - 1) * 0.1.to(device)
     # biases of the hidden layer
-    b1 = torch.zeros(100)
+    b1 = torch.zeros(100, device=device).to(device)
     # weights of hidden layer
-    w2 = (2 * torch.rand(100, 10) - 1) * 0.1
+    w2 = (2 * torch.rand(100, 10) - 1) * 0.1.to(device)
     # biases of output
-    b2 = torch.zeros(10)
+    b2 = torch.zeros(10, device=device)
 
     return w1, b1, w2, b2
 
@@ -41,13 +41,13 @@ def initialize_parameters():
 # forward pass
 def forward_pass(input_data, w1, b1, w2, b2, targets):
     with torch.no_grad():  # tell pytorch not to keep track of gradients
-        z1 = (input_data @ w1) + b1
-        za1 = torch.tanh(z1)
-        z2 = (za1 @ w2) + b2
+        z1 = ((input_data @ w1) + b1).to(device)
+        za1 = torch.tanh(z1).to(device)
+        z2 = ((za1 @ w2) + b2).to(device)
         # softmax activation
-        z2_exp = torch.exp(z2)
-        z2_sum = torch.sum(z2_exp, dim=1, keepdim=True)
-        za2 = z2_exp / z2_sum
+        z2_exp = (torch.exp(z2)).to(device)
+        z2_sum = (torch.sum(z2_exp, dim=1, keepdim=True)).to(device)
+        za2 = (z2_exp / z2_sum).to(device)
 
         # Calculate prediction accuracy
         _, predicted_classes = torch.max(za2, dim=1)
@@ -87,15 +87,15 @@ def backward_pass(inputs, targets, za1, w2, predictions):
     onehot = torch.zeros_like(predictions)
     onehot[range(onehot.shape[0]), targets] = 1
 
-    dz2 = predictions - onehot
-    dw2 = za1.T @ dz2
-    db2 = dz2.sum(dim=0)
+    dz2 = (predictions - onehot).to(device)
+    dw2 = (za1.T @ dz2).to(device)
+    db2 = (dz2.sum(dim=0)).to(device)
 
-    dza1 = dz2 @ w2.T
-    dz1 = dza1 * (1 - za1 ** 2)  # derivative of tanh
+    dza1 = (dz2 @ w2.T).to(device)
+    dz1 = (dza1 * (1 - za1 ** 2)).to(device)  # derivative of tanh
 
-    dw1 = inputs.T @ dz1
-    db1 = dz1.sum(dim=0)
+    dw1 = (inputs.T @ dz1).to(device)
+    db1 = (dz1.sum(dim=0)).to(device)
     return dw1, db1, dw2, db2
 
 # ____________________________________________________________________________________________________________________
@@ -103,11 +103,11 @@ def backward_pass(inputs, targets, za1, w2, predictions):
 
 
 def parameter_updates(dw1, dw2, db1, db2):
-    learning_rate = 0.001
-    dlw1 = learning_rate * dw1
-    dlw2 = learning_rate * dw2
-    dlb1 = learning_rate * db1
-    dlb2 = learning_rate * db2
+    learning_rate = 0.00001
+    dlw1 = (learning_rate * dw1).to(device)
+    dlw2 = (learning_rate * dw2).to(device)
+    dlb1 = (learning_rate * db1).to(device)
+    dlb2 = (learning_rate * db2).to(device)
     return dlw1, dlw2, dlb1, dlb2
 
 
@@ -139,11 +139,11 @@ ax.set_facecolor('#2C2F33')  # Setting the plot's background color
 # Setting up the axis and the grid
 ax.set_xlabel('Iterations', color='white')
 ax.set_ylabel('Accuracy (%)', color='white')
-ax.set_xlim(0, 10)
+ax.set_xlim(0, 100)
 ax.set_ylim(0, 100)
-ax.xaxis.set_ticks(range(0, 11, 1))  # X-axis in steps of 10
+ax.xaxis.set_ticks(range(0, 101, 10))  # X-axis in steps of 10
 ax.yaxis.set_ticks(range(0, 101, 10))  # Y-axis in steps of 10
-ax.grid(True, which='both', linestyle='--', linewidth=0.5, alpha=0.6)
+ax.grid(True, which='both', linestyle='--', linewidth=1.0, alpha=0.6)
 
 # Making sure the labels and ticks are white for visibility
 ax.tick_params(axis='x', colors='white')
@@ -158,7 +158,7 @@ test_accuracies = []
 plt.pause(5)
 
 # training loop
-for iterations in range(10):
+for iterations in range(100):
 
     # forward pass
     predictions, za1, train_accuracy = forward_pass(train_tensor, w1, b1, w2, b2, train_label)
@@ -193,8 +193,8 @@ for iterations in range(10):
         train_text.remove()
         test_text.remove()
 
-    train_text = ax.text(10, 86, f'Train Acc: {train_accuracy:.2f}%', color='#E91E63', fontsize=13, fontweight='bold', ha='right')
-    test_text = ax.text(10, 82, f'Test Acc: {test_accuracy:.2f}%', color='#03A9F4', fontsize=13, fontweight='bold', ha='right')
+    train_text = ax.text(100, 86, f'Train Acc: {train_accuracy:.2f}%', color='#E91E63', fontsize=13, fontweight='bold', ha='right')
+    test_text = ax.text(100, 82, f'Test Acc: {test_accuracy:.2f}%', color='#03A9F4', fontsize=13, fontweight='bold', ha='right')
 
     fig.canvas.flush_events()
 
